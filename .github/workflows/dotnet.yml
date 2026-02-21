@@ -29,9 +29,9 @@ jobs:
     - name: Test
       run: dotnet test --no-build --verbosity normal
     - name: Publish
-      run: dotnet publish -c Release -o ./publish
+      run: dotnet publish -c Release -r win-x64 --self-contained
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: VSCodeTeleporter
-        path: ./publish
+        path: ./VSCodeTeleporter/publish
