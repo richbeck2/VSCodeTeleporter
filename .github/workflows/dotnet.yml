@@ -28,10 +28,19 @@ jobs:
       run: dotnet build
     - name: Test
       run: dotnet test --no-build --verbosity normal
+    # Publish Framework dependent
     - name: Publish
-      run: dotnet publish src/VSCodeTeleporter.csproj -o ./publish -c Release -r win-x64 --self-contained
+      run: dotnet publish src/VSCodeTeleporter.csproj -o ./publish -c Release -r win-x64
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: VSCodeTeleporter
+        name: VSCodeTeleporter-win-x64-framework-dependent.zip
         path: ./publish
+    # Publish Self-contained
+    - name: Publish Self-Contained
+      run: dotnet publish src/VSCodeTeleporter.csproj -o ./publish-self-contained -c Release -r win-x64 --self-contained
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VSCodeTeleporter-win-x64-self-contained.zip
+        path: ./publish-self-contained
