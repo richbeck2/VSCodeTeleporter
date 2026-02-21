@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/core/">
+    <Project Path="core/VSCodeTeleporter.Core.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/VSCodeTeleporter.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VSCodeTeleporter.Tests.csproj" />
+  </Folder>
+</Solution>

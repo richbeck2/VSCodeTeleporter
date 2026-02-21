@@ -1,0 +1,13 @@
+.idea/
+
+core/obj/*
+core/bin/*
+core/publish/*
+
+tests/obj/*
+tests/bin/*
+tests/publish/*
+
+src/obj/*
+src/bin/*
+src/publish/*
