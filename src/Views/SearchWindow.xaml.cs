@@ -118,7 +118,9 @@ public partial class SearchWindow
             {
                 FileName = "code",
                 Arguments = $"\"{fullPath}\"",
-                UseShellExecute = true
+                UseShellExecute = true,
+                CreateNoWindow = true,            // prevents a terminal window from appearing
+                WindowStyle = ProcessWindowStyle.Hidden
             });
         }
         catch (Exception ex)
