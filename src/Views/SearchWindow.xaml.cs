@@ -55,7 +55,15 @@ public partial class SearchWindow
         var results = _matcher.Filter(_allFolders, query);
         ResultsList.ItemsSource = results;
         if (results.Count > 0)
+        {
             ResultsList.SelectedIndex = 0;
+            ResultsList.IsEnabled = true;
+        }
+        else if (IsGitUrl(query))
+        {
+            ResultsList.ItemsSource = new[] { "Press Enter to clone and open this repository in VSCode." };
+            ResultsList.SelectedIndex = 0;
+        }
         SearchPrompt.Visibility = string.IsNullOrEmpty(query)
             ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -91,6 +99,81 @@ public partial class SearchWindow
         }
     }
 
+    private static bool IsGitUrl(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return false;
+        if (!s.EndsWith(".git", StringComparison.OrdinalIgnoreCase)) return false;
+        if (!Uri.TryCreate(s, UriKind.Absolute, out var u)) return false;
+        return u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps;
+    }
+
+    private void CloneGitRepository(string url)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "git",
+            ArgumentList = { "clone", url },
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            WorkingDirectory = _settings.SearchRoot
+        };
+
+        using var p = Process.Start(psi);
+        p?.WaitForExit();
+        if (p == null || p.ExitCode != 0)
+        {
+            var err = p != null ? p.StandardError.ReadToEnd() : "Process failed to start.";
+            System.Windows.MessageBox.Show(
+                $"Git clone failed:\n{err}",
+                "Clone Failed",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+    }
+
+    private void HandleGitUrl(string url)
+    {
+        try
+        {
+            // Determine repo folder name
+            string repoName;
+            try
+            {
+                var uri = new Uri(url);
+                repoName = Path.GetFileName(uri.AbsolutePath);
+            }
+            catch
+            {
+                repoName = url.Split('/').Last();
+            }
+            if (repoName.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+                repoName = repoName[..^4];
+
+            var destPath = Path.Combine(_settings.SearchRoot, repoName);
+
+            if (Directory.Exists(destPath) && Directory.EnumerateFileSystemEntries(destPath).Any())
+            {
+                LaunchVSCode(destPath);
+                return;
+            }
+
+            CloneGitRepository(url);
+
+            LaunchVSCode(destPath);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Error while cloning or opening repository:\n{ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
     private void MoveSelection(int delta)
     {
         int count = ResultsList.Items.Count;
@@ -107,21 +190,19 @@ public partial class SearchWindow
 
     // ── Open ─────────────────────────────────────────────────────────────────
 
-    private void OpenSelected()
+    private void LaunchVSCode(string path)
     {
-        if (ResultsList.SelectedItem is not string folderName) return;
-
-        var fullPath = Path.Combine(_settings.SearchRoot, folderName);
         try
         {
             Process.Start(new ProcessStartInfo
             {
                 FileName = "code",
-                Arguments = $"\"{fullPath}\"",
+                Arguments = $"\"{path}\"",
                 UseShellExecute = true,
-                CreateNoWindow = true,            // prevents a terminal window from appearing
+                CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden
             });
+            Hide();
         }
         catch (Exception ex)
         {
@@ -131,7 +212,20 @@ public partial class SearchWindow
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
 
-        Hide();
+    private void OpenSelected()
+    {
+        if (ResultsList.SelectedItem is not string folderName) return;
+
+        folderName = folderName.Trim();
+        var searchText = SearchBox.Text?.Trim() ?? string.Empty;
+
+        var fullPath = Path.Combine(_settings.SearchRoot, folderName);
+        // If fullPath exists, open it, otherwise treat it as a prompt (e.g. git URL) and try to launch that directly
+        if (Directory.Exists(fullPath))
+            LaunchVSCode(fullPath);
+        else if (IsGitUrl(searchText))
+            HandleGitUrl(searchText);
     }
 }
